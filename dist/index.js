@@ -34848,7 +34848,7 @@ async function run() {
     if (isIssue && isPullRequest)
         return coreExports.setFailed('Internal Error...Both Issue and PR Provided by GitHub');
     // Get the action inputs.
-    const message = isIssue
+    const commentBody = isIssue
         ? coreExports.getInput('issue_message', { required: true })
         : coreExports.getInput('pr_message', { required: true });
     const octokit = new Octokit({
@@ -34862,7 +34862,7 @@ async function run() {
         owner: githubExports.context.repo.owner,
         repo: githubExports.context.repo.repo,
         issue_number: githubExports.context.issue.number,
-        body: message
+        body: commentBody
     });
 }
 /**
