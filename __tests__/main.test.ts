@@ -22,6 +22,17 @@ const main = await import('../src/main.js')
 const { Octokit } = await import('@octokit/rest')
 const mocktokit = jest.mocked(new Octokit())
 
+// Mirrors @actions/core's getInput: returns '' for unset inputs and throws
+// when an unset input is requested with `required: true`.
+function mockInputs(values: Record<string, string>): void {
+  core.getInput.mockImplementation((name, options) => {
+    const value = values[name] ?? ''
+    if (options?.required && !value)
+      throw new Error(`Input required and not supplied: ${name}`)
+    return value
+  })
+}
+
 describe('main.ts', () => {
   afterEach(() => {
     jest.resetAllMocks()
@@ -40,17 +51,10 @@ describe('main.ts', () => {
     }
 
     // Set the action's inputs as return values from core.getInput().
-    core.getInput.mockImplementation((name: string) => {
-      switch (name) {
-        case 'issue_message':
-          return 'ISSUE_MESSAGE'
-        case 'pr_message':
-          return 'PR_MESSAGE'
-        case 'repo_token':
-          return 'REPO_TOKEN'
-        default:
-          return ''
-      }
+    mockInputs({
+      issue_message: 'ISSUE_MESSAGE',
+      pr_message: 'PR_MESSAGE',
+      repo_token: 'REPO_TOKEN'
     })
   })
 
@@ -171,17 +175,9 @@ describe('main.ts', () => {
       }
       github.context.payload.pull_request = undefined as any
 
-      // pr_message is intentionally empty; required-input behavior throws.
-      core.getInput.mockImplementation((name: string, options) => {
-        const values: Record<string, string> = {
-          issue_message: 'ISSUE_MESSAGE',
-          pr_message: '',
-          repo_token: 'REPO_TOKEN'
-        }
-        const value = values[name] ?? ''
-        if (options?.required && !value)
-          throw new Error(`Input required and not supplied: ${name}`)
-        return value
+      mockInputs({
+        issue_message: 'ISSUE_MESSAGE',
+        repo_token: 'REPO_TOKEN'
       })
 
       mocktokit.paginate
@@ -200,17 +196,9 @@ describe('main.ts', () => {
         number: 10
       }
 
-      // issue_message is intentionally empty; required-input behavior throws.
-      core.getInput.mockImplementation((name: string, options) => {
-        const values: Record<string, string> = {
-          issue_message: '',
-          pr_message: 'PR_MESSAGE',
-          repo_token: 'REPO_TOKEN'
-        }
-        const value = values[name] ?? ''
-        if (options?.required && !value)
-          throw new Error(`Input required and not supplied: ${name}`)
-        return value
+      mockInputs({
+        pr_message: 'PR_MESSAGE',
+        repo_token: 'REPO_TOKEN'
       })
 
       mocktokit.paginate
@@ -229,16 +217,9 @@ describe('main.ts', () => {
       }
       github.context.payload.pull_request = undefined as any
 
-      core.getInput.mockImplementation((name: string, options) => {
-        const values: Record<string, string> = {
-          issue_message: '',
-          pr_message: 'PR_MESSAGE',
-          repo_token: 'REPO_TOKEN'
-        }
-        const value = values[name] ?? ''
-        if (options?.required && !value)
-          throw new Error(`Input required and not supplied: ${name}`)
-        return value
+      mockInputs({
+        pr_message: 'PR_MESSAGE',
+        repo_token: 'REPO_TOKEN'
       })
 
       await expect(main.run()).rejects.toThrow(
@@ -253,16 +234,9 @@ describe('main.ts', () => {
         number: 10
       }
 
-      core.getInput.mockImplementation((name: string, options) => {
-        const values: Record<string, string> = {
-          issue_message: 'ISSUE_MESSAGE',
-          pr_message: '',
-          repo_token: 'REPO_TOKEN'
-        }
-        const value = values[name] ?? ''
-        if (options?.required && !value)
-          throw new Error(`Input required and not supplied: ${name}`)
-        return value
+      mockInputs({
+        issue_message: 'ISSUE_MESSAGE',
+        repo_token: 'REPO_TOKEN'
       })
 
       await expect(main.run()).rejects.toThrow(

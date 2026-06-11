@@ -28,7 +28,7 @@ export async function run() {
     )
 
   // Get the action inputs.
-  const message: string = isIssue
+  const commentBody: string = isIssue
     ? core.getInput('issue_message', { required: true })
     : core.getInput('pr_message', { required: true })
 
@@ -46,7 +46,7 @@ export async function run() {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
     issue_number: github.context.issue.number,
-    body: message
+    body: commentBody
   })
 }
 
