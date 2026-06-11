@@ -40,10 +40,18 @@ describe('main.ts', () => {
     }
 
     // Set the action's inputs as return values from core.getInput().
-    core.getInput
-      .mockReturnValueOnce('ISSUE_MESSAGE')
-      .mockReturnValueOnce('PR_MESSAGE')
-      .mockReturnValueOnce('REPO_TOKEN')
+    core.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'issue_message':
+          return 'ISSUE_MESSAGE'
+        case 'pr_message':
+          return 'PR_MESSAGE'
+        case 'repo_token':
+          return 'REPO_TOKEN'
+        default:
+          return ''
+      }
+    })
   })
 
   describe('run()', () => {
@@ -155,6 +163,112 @@ describe('main.ts', () => {
       await main.run()
 
       expect(mocktokit.rest.issues.createComment).toHaveBeenCalled()
+    })
+
+    it('Does not require pr_message on an issue event', async () => {
+      github.context.payload.issue = {
+        number: 10
+      }
+      github.context.payload.pull_request = undefined as any
+
+      // pr_message is intentionally empty; required-input behavior throws.
+      core.getInput.mockImplementation((name: string, options) => {
+        const values: Record<string, string> = {
+          issue_message: 'ISSUE_MESSAGE',
+          pr_message: '',
+          repo_token: 'REPO_TOKEN'
+        }
+        const value = values[name] ?? ''
+        if (options?.required && !value)
+          throw new Error(`Input required and not supplied: ${name}`)
+        return value
+      })
+
+      mocktokit.paginate
+        // Issues
+        .mockResolvedValueOnce([{ number: 10 }])
+        // PRs
+        .mockResolvedValueOnce([])
+
+      await expect(main.run()).resolves.toBeUndefined()
+      expect(mocktokit.rest.issues.createComment).toHaveBeenCalled()
+    })
+
+    it('Does not require issue_message on a PR event', async () => {
+      github.context.payload.issue = undefined as any
+      github.context.payload.pull_request = {
+        number: 10
+      }
+
+      // issue_message is intentionally empty; required-input behavior throws.
+      core.getInput.mockImplementation((name: string, options) => {
+        const values: Record<string, string> = {
+          issue_message: '',
+          pr_message: 'PR_MESSAGE',
+          repo_token: 'REPO_TOKEN'
+        }
+        const value = values[name] ?? ''
+        if (options?.required && !value)
+          throw new Error(`Input required and not supplied: ${name}`)
+        return value
+      })
+
+      mocktokit.paginate
+        // Issues
+        .mockResolvedValueOnce([])
+        // PRs
+        .mockResolvedValueOnce([{ number: 10 }])
+
+      await expect(main.run()).resolves.toBeUndefined()
+      expect(mocktokit.rest.issues.createComment).toHaveBeenCalled()
+    })
+
+    it('Fails if issue_message is missing on an issue event', async () => {
+      github.context.payload.issue = {
+        number: 10
+      }
+      github.context.payload.pull_request = undefined as any
+
+      core.getInput.mockImplementation((name: string, options) => {
+        const values: Record<string, string> = {
+          issue_message: '',
+          pr_message: 'PR_MESSAGE',
+          repo_token: 'REPO_TOKEN'
+        }
+        const value = values[name] ?? ''
+        if (options?.required && !value)
+          throw new Error(`Input required and not supplied: ${name}`)
+        return value
+      })
+
+      await expect(main.run()).rejects.toThrow(
+        'Input required and not supplied: issue_message'
+      )
+      expect(mocktokit.rest.issues.createComment).not.toHaveBeenCalled()
+    })
+
+    it('Fails if pr_message is missing on a PR event', async () => {
+      github.context.payload.issue = undefined as any
+      github.context.payload.pull_request = {
+        number: 10
+      }
+
+      core.getInput.mockImplementation((name: string, options) => {
+        const values: Record<string, string> = {
+          issue_message: 'ISSUE_MESSAGE',
+          pr_message: '',
+          repo_token: 'REPO_TOKEN'
+        }
+        const value = values[name] ?? ''
+        if (options?.required && !value)
+          throw new Error(`Input required and not supplied: ${name}`)
+        return value
+      })
+
+      await expect(main.run()).rejects.toThrow(
+        'Input required and not supplied: pr_message'
+      )
+      expect(mocktokit.rest.issues.createComment).not.toHaveBeenCalled()
     })
   })
 
