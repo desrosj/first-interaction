@@ -22,14 +22,16 @@ const main = await import('../src/main.js')
 const { Octokit } = await import('@octokit/rest')
 const mocktokit = jest.mocked(new Octokit())
 
-// Mirrors @actions/core's getInput: returns '' for unset inputs and throws
-// when an unset input is requested with `required: true`.
+// Mirrors @actions/core's getInput: returns '' for unset inputs, throws when
+// a required input is empty (checked against the raw value, so whitespace-only
+// passes the check just like in production), trims the returned value by
+// default, and honors `trimWhitespace: false` to return the raw value.
 function mockInputs(values: Record<string, string>): void {
   core.getInput.mockImplementation((name, options) => {
     const value = values[name] ?? ''
     if (options?.required && !value)
       throw new Error(`Input required and not supplied: ${name}`)
-    return value
+    return options?.trimWhitespace === false ? value : value.trim()
   })
 }
 
